@@ -7,6 +7,7 @@ from jax.flatten_util import ravel_pytree
 
 from blackjax.mcmc.diffusion import overdamped_langevin
 from blackjax.types import PRNGKey, PyTree
+from jax.experimental.host_callback import id_print
 
 __all__ = ["MALAState", "MALAInfo", "init", "kernel"]
 
@@ -86,7 +87,7 @@ def kernel():
         key_integrator, key_rmh = jax.random.split(rng_key)
 
         new_state = integrator(key_integrator, state, step_size)
-
+        # id_print(new_state.logprob, a="Called from contin step")
         delta = (
             new_state.logprob
             - state.logprob

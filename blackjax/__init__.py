@@ -6,6 +6,8 @@ from .kernels import (
     hmc,
     irmh,
     mala,
+    dmala,
+    mixed_mala,
     mgrad_gaussian,
     nuts,
     orbital_hmc,
@@ -25,6 +27,8 @@ __all__ = [
     "lbfgs",
     "hmc",  # mcmc
     "mala",
+    "dmala",
+    "mixed_mala",
     "mgrad_gaussian",
     "nuts",
     "orbital_hmc",
