@@ -7,7 +7,6 @@ from blackjax.types import PRNGKey, PyTree
 from blackjax.mcmc.mala import kernel as ckernel
 from blackjax.mcmc.dmala import kernel as dkernel
 from blackjax.mcmc.mala import MALAState, MALAInfo
-from numpyro.infer import MixedHMC
 from blackjax.mcmc.diffusion import generate_gaussian_noise
 from jax.flatten_util import ravel_pytree
 
