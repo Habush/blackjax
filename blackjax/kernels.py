@@ -382,16 +382,20 @@ class mixed_mala:
 
     def __new__(cls,
               logprob_fn: Callable,
+              discrete_grad_fn: Callable,
+              contin_grad_fn: Callable,
               disc_step_size: float,
               contin_step_size: float, L: int) -> SamplingAlgorithm:
         step = cls.kernel()
 
         def init_fn(position: PyTree):
-            disc_position, contin_position = jax.tree_util.tree_flatten(position)[0]
-            return cls.init(disc_position, contin_position, logprob_fn)
+            disc_position, contin_position = position
+            return cls.init(disc_position, contin_position, logprob_fn, discrete_grad_fn, contin_grad_fn)
 
         def step_fn(rng_key: PRNGKey, state):
-            return step(rng_key, state, logprob_fn, disc_step_size, contin_step_size, L)
+            return step(rng_key, state, logprob_fn,
+                        discrete_grad_fn, contin_grad_fn,
+                        disc_step_size, contin_step_size, L)
 
         return SamplingAlgorithm(init_fn, step_fn)
 

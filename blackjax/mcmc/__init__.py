@@ -4,6 +4,7 @@ from . import (
     irmh,
     mala,
     dmala,
+    integrators,
     mixed_mala,
     marginal_latent_gaussian,
     nuts,
@@ -17,6 +18,7 @@ __all__ = [
     "mala",
     "dmala.py",
     "mixed_mala",
+    "integrators"
     "nuts",
     "periodic_orbital",
     "rmh",
