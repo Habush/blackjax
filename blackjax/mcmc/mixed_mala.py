@@ -79,50 +79,45 @@ def kernel():
 
     def diff_fn(state, step_size):
 
-        theta = jax.tree_util.tree_map(lambda x, g: 0.5*(g)*(2.*x - 1) - 0.5*step_size,
+        theta = jax.tree_util.tree_map(lambda x, g: -0.5*(g)*(2.*x - 1) - (1./(2.*step_size)),
                                        state.position, state.logprob_grad)
 
-        # theta_ravel, _ = ravel_pytree(theta)
-        theta = jnp.where(jnp.isnan(theta), -jnp.inf, theta)
-        return jnp.exp(theta) / (jnp.exp(theta) + 1)
+        return jax.nn.sigmoid(theta)
 
 
     def take_discrete_step(rng_key: PRNGKey, disc_state: MALAState, contin_state: MALAState,
                            logprob_fn: Callable, disc_grad_fn: Callable,
                            step_size: float) -> MALAState:
 
-        _, key_rmh = jax.random.split(rng_key)
-        u = jax.random.uniform(key_rmh, shape=disc_state.position.shape)
-        p_cur = diff_fn(disc_state, step_size)
-        ind = jnp.array(u < p_cur) * 1
-        probs_cur = p_cur*ind + (1. - p_cur) * (1. - ind)
-        lp_forward = jnp.sum(jnp.log(probs_cur + EPS), axis=-1)
+        _, key_rmh, key_accept = jax.random.split(rng_key, 3)
+        theta_cur = disc_state.position
 
-        pos_new = (1. - disc_state.position)*ind + disc_state.position*(1. - ind)
-        logprob_new = logprob_fn(disc_state.position, contin_state.position)
-        logprob_grad_new = disc_grad_fn(disc_state.position, contin_state.position)
+        u = jax.random.uniform(key_rmh, shape=disc_state.position.shape)
+        p_curr = diff_fn(disc_state, step_size)
+        ind = jnp.array(u < p_curr)
+        pos_new = (1. - theta_cur)*ind + theta_cur*(1. - ind)
+        probs = p_curr*ind + (1. - p_curr) * (1. - ind)
+        lp_forward = jnp.sum(jnp.log(probs+EPS), axis=-1)
+
+        logprob_new = logprob_fn(pos_new, contin_state.position)
+        logprob_grad_new = disc_grad_fn(pos_new, contin_state.position)
         new_state = MALAState(pos_new, logprob_new, logprob_grad_new)
         p_new = diff_fn(new_state, step_size)
         probs_new = p_new*ind + (1. - p_new)*(1. - ind)
-        lp_reverse = jnp.sum(jnp.log(probs_new+EPS), axis=-1)
-
+        lp_reverse = jnp.sum(jnp.log(probs_new + EPS), axis=-1)
         delta = (new_state.logprob
-                - disc_state.logprob
-                + lp_reverse
-                - lp_forward)
+                 - disc_state.logprob
+                 + lp_reverse
+                 - lp_forward)
 
-        delta = jnp.where(jnp.isnan(delta), -jnp.inf, delta)
-        p_accept = jnp.clip(jnp.exp(delta), a_max=1)
-
-        do_accept = jax.random.bernoulli(key_rmh, p_accept)
-
-        return jax.lax.cond(
-            do_accept,
-            lambda _: new_state,
-            lambda _: disc_state,
-            operand=None,
-        )
-
+        u2 = jax.random.uniform(key_accept, shape=theta_cur.shape)
+        a = u2 < jnp.exp(delta)
+        theta_new = pos_new * a + theta_cur * (1. - a)
+        logprob_theta_new = logprob_fn(theta_new, contin_state.position)
+        grad_theta_new = disc_grad_fn(theta_new, contin_state.position)
+        new_state = MALAState(pos_new, logprob_theta_new, grad_theta_new)
+        # info = MALAInfo(jnp.mean(a), jnp.mean(a) > 0)
+        return new_state
 
     def take_contin_step(rng_key: PRNGKey, disc_state: MALAState, contin_state: MALAState,
                            logprob_fn: Callable, contin_grad_fn: Callable,
