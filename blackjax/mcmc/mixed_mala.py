@@ -172,7 +172,7 @@ def kernel():
         # Take steps for the contin variable
         new_contin_state = jax.lax.fori_loop(0, L,
              lambda ii, state: take_contin_step(
-                 rng_key, disc_state, contin_state, logprob_fn, contin_grad_fn, contin_step_size),
+                 rng_key, new_disc_state, contin_state, logprob_fn, contin_grad_fn, contin_step_size),
              contin_state)
 
         new_state = MixedMALAState(MixedMALAPosition(new_disc_state.position, new_contin_state.position),
