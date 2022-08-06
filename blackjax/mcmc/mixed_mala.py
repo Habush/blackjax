@@ -51,7 +51,8 @@ class MixedMALAInfo(NamedTuple):
 
 # We assume the log probability function takes discrete variable as its 1st arg and the contin as its 2nd arg
 def init(disc_position: PyTree, contin_position: PyTree, logprob_fn: Callable,
-         disc_grad_fn: Callable, contin_grad_fn: Callable) -> MixedMALAState:
+         disc_grad_fn: Callable, contin_grad_fn: Callable,
+         init_disc_step: float, init_contin_step: float) -> MixedMALAState:
 
     logprob = logprob_fn(disc_position, contin_position)
     disc_logprob_grad = disc_grad_fn(disc_position, contin_position)
@@ -59,7 +60,8 @@ def init(disc_position: PyTree, contin_position: PyTree, logprob_fn: Callable,
     contin_logprob_grad = contin_grad_fn(disc_position, contin_position)
 
     return MixedMALAState(MixedMALAPosition(disc_position, contin_position), logprob,
-                                                    disc_logprob_grad, contin_logprob_grad)
+                          disc_logprob_grad, contin_logprob_grad,
+                          init_disc_step, init_contin_step)
 
 
 
