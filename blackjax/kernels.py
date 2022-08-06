@@ -384,8 +384,8 @@ class mixed_mala:
               logprob_fn: Callable,
               discrete_grad_fn: Callable,
               contin_grad_fn: Callable,
-              disc_step_size: float,
-              contin_step_size: float, L: int) -> SamplingAlgorithm:
+              disc_step_schedule_fn: Callable,
+              contin_step_schedule_fn: Callable, L: int) -> SamplingAlgorithm:
         step = cls.kernel()
 
         def init_fn(position: PyTree):
@@ -393,6 +393,8 @@ class mixed_mala:
             return cls.init(disc_position, contin_position, logprob_fn, discrete_grad_fn, contin_grad_fn)
 
         def step_fn(rng_key: PRNGKey, state):
+            disc_step_size = disc_step_schedule_fn(state.disc_step_size)
+            contin_step_size = contin_step_schedule_fn(state.contin_step_size)
             return step(rng_key, state, logprob_fn,
                         discrete_grad_fn, contin_grad_fn,
                         disc_step_size, contin_step_size, L)

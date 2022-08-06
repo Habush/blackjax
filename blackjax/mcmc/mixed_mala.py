@@ -26,6 +26,9 @@ class MixedMALAState(NamedTuple):
     discrete_logprob_grad: PyTree
     contin_logprob_grad: PyTree
 
+    disc_step_size: float
+    contin_step_size: float
+
 class MixedMALAInfo(NamedTuple):
     """Additional information on the MALA transition.
 
@@ -177,7 +180,8 @@ def kernel():
 
         new_state = MixedMALAState(MixedMALAPosition(new_disc_state.position, new_contin_state.position),
                                    new_contin_state.logprob,
-                                   new_disc_state.logprob_grad, new_contin_state.logprob_grad)
+                                   new_disc_state.logprob_grad, new_contin_state.logprob_grad,
+                                   discrete_step_size, contin_step_size)
 
 
         return new_state
