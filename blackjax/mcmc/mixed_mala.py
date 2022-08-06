@@ -123,8 +123,8 @@ def kernel():
                            logprob_fn: Callable, contin_grad_fn: Callable,
                            step_size: float) -> MALAState:
 
-        _, key_rmh = jax.random.split(rng_key)
-        noise = generate_gaussian_noise(rng_key, contin_state.position)
+        key_integrator, key_rmh = jax.random.split(rng_key)
+        noise = generate_gaussian_noise(key_integrator, contin_state.position)
         new_position = jax.tree_util.tree_map(
             lambda p, g, n: p + step_size * g + jnp.sqrt(2 * step_size) * n,
             contin_state.position,
