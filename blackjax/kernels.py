@@ -381,22 +381,21 @@ class mixed_mala:
     kernel = staticmethod(mcmc.mixed_mala.kernel)
 
     def __new__(cls,
-              logprob_fn: Callable,
-              discrete_grad_fn: Callable,
-              contin_grad_fn: Callable,
-              disc_step_schedule_fn: Callable,
-              contin_step_schedule_fn: Callable, L: int) -> SamplingAlgorithm:
+              disc_logprob_fn: Callable,
+              contin_logprob_fn: Callable,
+              disc_step_size: float,
+              contin_step_size: float, L: int) -> SamplingAlgorithm:
         step = cls.kernel()
 
         def init_fn(position: PyTree):
             disc_position, contin_position = position
-            return cls.init(disc_position, contin_position, logprob_fn, discrete_grad_fn, contin_grad_fn)
+            return cls.init(disc_position, contin_position, disc_logprob_fn, contin_logprob_fn,
+                                disc_step_size, contin_step_size)
 
         def step_fn(rng_key: PRNGKey, state):
-            disc_step_size = disc_step_schedule_fn(state.disc_step_size)
-            contin_step_size = contin_step_schedule_fn(state.contin_step_size)
-            return step(rng_key, state, logprob_fn,
-                        discrete_grad_fn, contin_grad_fn,
+
+            return step(rng_key, state,
+                        disc_logprob_fn, contin_logprob_fn,
                         disc_step_size, contin_step_size, L)
 
         return SamplingAlgorithm(init_fn, step_fn)

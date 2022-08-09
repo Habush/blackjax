@@ -21,7 +21,8 @@ class MixedMALAState(NamedTuple):
 
     position: MixedMALAPosition
 
-    logprob: float
+    disc_logprob: float
+    contin_logprob: float
 
     discrete_logprob_grad: PyTree
     contin_logprob_grad: PyTree
@@ -50,17 +51,16 @@ class MixedMALAInfo(NamedTuple):
     contin_is_accepted: bool
 
 # We assume the log probability function takes discrete variable as its 1st arg and the contin as its 2nd arg
-def init(disc_position: PyTree, contin_position: PyTree, logprob_fn: Callable,
-         disc_grad_fn: Callable, contin_grad_fn: Callable,
+def init(disc_position: PyTree, contin_position: PyTree,
+         disc_logprob_fn: Callable, contin_logprob_fn: Callable,
          init_disc_step: float, init_contin_step: float) -> MixedMALAState:
 
-    logprob = logprob_fn(disc_position, contin_position)
-    disc_logprob_grad = disc_grad_fn(disc_position, contin_position)
+    disc_logprob, disc_grad_logprob = jax.value_and_grad(disc_logprob_fn)(disc_position, contin_position)
+    contin_logprob, contin_grad_logprob = jax.value_and_grad(contin_logprob_fn, argnums=1)(disc_position, contin_position)
 
-    contin_logprob_grad = contin_grad_fn(disc_position, contin_position)
-
-    return MixedMALAState(MixedMALAPosition(disc_position, contin_position), logprob,
-                          disc_logprob_grad, contin_logprob_grad,
+    return MixedMALAState(MixedMALAPosition(disc_position, contin_position),
+                          disc_logprob, contin_logprob,
+                          disc_grad_logprob, contin_grad_logprob,
                           init_disc_step, init_contin_step)
 
 
@@ -159,29 +159,30 @@ def kernel():
         )
 
     def one_step(
-            rng_key: PRNGKey, state: MixedMALAState, logprob_fn: Callable,
-            disc_grad_fn: Callable, contin_grad_fn: Callable,
+            rng_key: PRNGKey, state: MixedMALAState,
+            disc_logprob_fn: Callable, contin_logprob_fn: Callable,
             discrete_step_size: float, contin_step_size: float, L: int
     ) -> MixedMALAState:
 
-
+        disc_grad_fn = jax.grad(disc_logprob_fn)
+        contin_grad_fn = jax.grad(contin_logprob_fn, argnums=1)
         # Evolve each variable in tandem and combine the results
-        disc_state = MALAState(state.position.discrete_position, state.logprob, state.discrete_logprob_grad)
-        contin_state = MALAState(state.position.contin_position, state.logprob, state.contin_logprob_grad)
+        disc_state = MALAState(state.position.discrete_position, state.disc_logprob, state.discrete_logprob_grad)
+        contin_state = MALAState(state.position.contin_position, state.contin_logprob, state.contin_logprob_grad)
 
         # Take steps for the discrete variable
         new_disc_state = jax.lax.fori_loop(0, L,
             lambda ii, state: take_discrete_step(
-                rng_key, disc_state, contin_state, logprob_fn, disc_grad_fn, discrete_step_size),
+                rng_key, disc_state, contin_state, disc_logprob_fn, disc_grad_fn, discrete_step_size),
                 disc_state)
         # Take steps for the contin variable
         new_contin_state = jax.lax.fori_loop(0, L,
              lambda ii, state: take_contin_step(
-                 rng_key, new_disc_state, contin_state, logprob_fn, contin_grad_fn, contin_step_size),
+                 rng_key, new_disc_state, contin_state, contin_logprob_fn, contin_grad_fn, contin_step_size),
              contin_state)
 
         new_state = MixedMALAState(MixedMALAPosition(new_disc_state.position, new_contin_state.position),
-                                   new_contin_state.logprob,
+                                   new_disc_state.logprob, new_contin_state.logprob,
                                    new_disc_state.logprob_grad, new_contin_state.logprob_grad,
                                    discrete_step_size, contin_step_size)
 
